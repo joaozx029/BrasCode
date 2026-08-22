@@ -1112,6 +1112,13 @@ label {
   transition: background 0.1s, color 0.1s;
 }
 
+.settings-nav-item svg {
+  color: inherit;
+  fill: currentColor;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 .settings-nav-item:hover {
   background: #35363c;
   color: #dbdee1;

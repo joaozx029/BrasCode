@@ -880,10 +880,17 @@ function App() {
 
                   <div className="settings-nav-label">Experiência</div>
                   <div className={`settings-nav-item ${settingsTab === 'voz' ? 'active' : ''}`} onClick={() => setSettingsTab('voz')}>
-                    🎤 Voz e vídeo
+                    <FaHeadset size={16} /> Voz e vídeo
                   </div>
-                  <div className={`settings-nav-item ${settingsTab === 'aparencia' ? 'active' : ''}`} onClick={() => { setSettingsTab('aparencia'); setSettingsSub('tema') }}>
-                    🎨 Aparência <span className="badge">NOVO</span>
+                  <div
+                    className={`settings-nav-item ${settingsTab === 'aparencia' ? 'active' : ''}`}
+                    onClick={() => {
+                      setSettingsTab('aparencia')
+                      setSettingsSub('tema')
+                      setDraftTheme({ ...appliedTheme })
+                    }}
+                  >
+                    <HiOutlineSparkles size={16} /> Aparência <span className="badge">NOVO</span>
                   </div>
                   {settingsTab === 'aparencia' && (
                     <div className="settings-subnav">
@@ -896,24 +903,24 @@ function App() {
                     </div>
                   )}
                   <div className={`settings-nav-item ${settingsTab === 'acessibilidade' ? 'active' : ''}`} onClick={() => setSettingsTab('acessibilidade')}>
-                    ♿ Acessibilidade
+                    <FaUser size={16} /> Acessibilidade
                   </div>
                   <div className={`settings-nav-item ${settingsTab === 'sistema' ? 'active' : ''}`} onClick={() => setSettingsTab('sistema')}>
-                    💻 Sistema
+                    <FaCog size={16} /> Sistema
                   </div>
                   <div className={`settings-nav-item ${settingsTab === 'idioma' ? 'active' : ''}`} onClick={() => setSettingsTab('idioma')}>
-                    🌐 Idioma e Horário
+                    <FaBell size={16} /> Idioma e Horário
                   </div>
 
                   <div className="settings-nav-label">Jogos e apps</div>
                   <div className={`settings-nav-item ${settingsTab === 'atividades' ? 'active' : ''}`} onClick={() => setSettingsTab('atividades')}>
-                    🎮 Privacidade nas atividades
+                    <FaGem size={16} /> Privacidade nas atividades
                   </div>
                   <div className={`settings-nav-item ${settingsTab === 'apps' ? 'active' : ''}`} onClick={() => setSettingsTab('apps')}>
-                    🔗 Apps conectados
+                    <MdOutlineStorefront size={16} /> Apps conectados
                   </div>
                   <div className={`settings-nav-item ${settingsTab === 'dev' ? 'active' : ''}`} onClick={() => setSettingsTab('dev')}>
-                    {'</>'} Desenvolvedor
+                    <FaPen size={16} /> Desenvolvedor
                   </div>
                 </div>
 
@@ -1444,11 +1451,11 @@ function App() {
                           <button
                             key={t.id}
                             type="button"
-                            className={`theme-swatch ${(themePreview ? draftTheme.theme : appliedTheme.theme) === t.id ? 'selected' : ''}`}
+                            className={`theme-swatch ${draftTheme.theme === t.id && draftTheme.colorTheme == null ? 'selected' : ''}`}
                             style={{ background: t.bg, borderColor: t.border || 'transparent' }}
-                            onClick={() => setDraftTheme((d) => ({ ...d, theme: t.id, colorTheme: null }))}
+                            onClick={() => setDraftTheme({ theme: t.id, colorTheme: null })}
                           >
-                            {(themePreview ? draftTheme.theme : appliedTheme.theme) === t.id && <span className="theme-check">✓</span>}
+                            {draftTheme.theme === t.id && draftTheme.colorTheme == null && <span className="theme-check">✓</span>}
                             {t.id === 'auto' && <span className="theme-auto">⇄</span>}
                           </button>
                         ))}
@@ -1530,7 +1537,7 @@ function App() {
                             <button
                               key={i}
                               type="button"
-                              className={`color-theme-swatch ${(themePreview ? draftTheme.colorTheme : appliedTheme.colorTheme) === i ? 'selected' : ''}`}
+                              className={`color-theme-swatch ${draftTheme.colorTheme === i ? 'selected' : ''}`}
                               style={{ background: bg }}
                               onClick={() => setDraftTheme((d) => ({ ...d, colorTheme: i }))}
                             />
