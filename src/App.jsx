@@ -160,6 +160,7 @@ function App() {
   const [showGoogleModal, setShowGoogleModal] = useState(false)
   const [themePreview, setThemePreview] = useState(false)
   const [authScreen, setAuthScreen] = useState('welcome') // welcome | login | register
+  const [regName, setRegName] = useState('')
   const [regUser, setRegUser] = useState('')
   const [regPass, setRegPass] = useState('')
   const [regPass2, setRegPass2] = useState('')
@@ -223,7 +224,8 @@ function App() {
   })
 
   // Perfil / decorações
-  const [username, setUsername] = useState('')
+  const [globalName, setGlobalName] = useState('') // nome principal exibido
+  const [username, setUsername] = useState('')   // @username / handle
   const [bannerColor, setBannerColor] = useState('#f47b67')
   const [bannerImage, setBannerImage] = useState(null)
   const [avatarStyle, setAvatarStyle] = useState('default')
@@ -262,7 +264,9 @@ function App() {
       const profile = localStorage.getItem('discord_profile')
       if (profile) {
         const p = JSON.parse(profile)
+        if (p.globalName) setGlobalName(p.globalName)
         if (p.username) setUsername(p.username)
+        if (!p.globalName && p.username) setGlobalName(p.username)
         if (p.bannerColor) {
           setBannerColor(p.bannerColor)
           setHexInput(p.bannerColor)
@@ -340,6 +344,7 @@ function App() {
 
   const saveProfile = (updates = {}) => {
     const data = {
+      globalName: updates.globalName ?? globalName,
       username: updates.username ?? username,
       bannerColor: updates.bannerColor ?? bannerColor,
       bannerImage: updates.bannerImage !== undefined ? updates.bannerImage : bannerImage,
@@ -510,14 +515,16 @@ function App() {
       }
       setEmail(found.email)
       setUsername(found.username)
-      saveProfile({ username: found.username })
+      setGlobalName(found.globalName || found.username)
+      saveProfile({ username: found.username, globalName: found.globalName || found.username })
       saveLogin(found.email, found.password, rememberMe)
     } else {
       // primeira conta / legado
       const name = email.includes('@') ? email.split('@')[0] : email.trim()
-      saveUser({ username: name, email: email.trim(), password, birth: '' })
+      saveUser({ username: name, globalName: name, email: email.trim(), password, birth: '' })
       setUsername(name)
-      saveProfile({ username: name })
+      setGlobalName(name)
+      saveProfile({ username: name, globalName: name })
       saveLogin(email, password, rememberMe)
     }
     setShowSuccessModal(true)
@@ -527,24 +534,28 @@ function App() {
     e.preventDefault()
     const errs = {}
     if (!regBirth) errs.birth = 'Informe a data de nascimento.'
+    if (!regName.trim() || regName.trim().length < 2) errs.name = 'Informe seu nome (mín. 2 caracteres).'
     if (!regUser.trim() || !/^[a-zA-Z0-9._]{2,32}$/.test(regUser.trim())) {
-      errs.user = 'Usuário inválido (letras, números, _ e .).'
+      errs.user = 'Username inválido (letras, números, _ e .).'
     }
     if (!regPass || regPass.length < 4) errs.pass = 'Senha com pelo menos 4 caracteres.'
     if (regPass !== regPass2) errs.pass2 = 'As senhas não coincidem.'
     const users = getUsers()
     if (users.some((u) => u.username.toLowerCase() === regUser.trim().toLowerCase())) {
-      errs.user = 'Esse usuário já existe.'
+      errs.user = 'Esse username já existe.'
     }
     setRegErrors(errs)
     if (Object.keys(errs).length) return
 
     const mail = `${regUser.trim()}@local.app`
-    saveUser({ username: regUser.trim(), email: mail, password: regPass, birth: regBirth })
+    const gName = regName.trim()
+    const uName = regUser.trim()
+    saveUser({ username: uName, globalName: gName, email: mail, password: regPass, birth: regBirth })
     setEmail(mail)
     setPassword(regPass)
-    setUsername(regUser.trim())
-    saveProfile({ username: regUser.trim() })
+    setUsername(uName)
+    setGlobalName(gName)
+    saveProfile({ username: uName, globalName: gName })
     saveLogin(mail, regPass, true)
     setShowSuccessModal(true)
   }
@@ -558,10 +569,12 @@ function App() {
     setEmail(mail)
     const pass = 'google-oauth'
     setPassword(pass)
-    saveLogin(mail, pass, rememberMe)
     const name = mail.includes('@') ? mail.split('@')[0] : mail
+    saveUser({ username: name, globalName: name, email: mail, password: pass, birth: '' })
+    saveLogin(mail, pass, rememberMe)
     setUsername(name)
-    saveProfile({ username: name })
+    setGlobalName(name)
+    saveProfile({ username: name, globalName: name })
     setShowGoogleModal(false)
     setShowSuccessModal(true)
   }
@@ -589,13 +602,21 @@ function App() {
   }
 
   const getDisplayName = () => {
+    if (globalName.trim()) return globalName.trim()
     if (username.trim()) return username.trim()
     if (!email.trim()) return 'Usuário'
     if (email.includes('@')) return email.split('@')[0]
     return email.trim()
   }
 
+  const getHandle = () => {
+    if (username.trim()) return username.trim().toLowerCase()
+    if (email.includes('@')) return email.split('@')[0].toLowerCase()
+    return (email.trim() || 'usuario').toLowerCase()
+  }
+
   const displayName = getDisplayName()
+  const handleName = getHandle()
   const avatarLetter = displayName.charAt(0).toUpperCase()
   const currentAvatar = AVATAR_STYLES.find(a => a.id === avatarStyle) || AVATAR_STYLES[0]
 
@@ -624,9 +645,11 @@ function App() {
                 <button
                   className="settings-btn"
                   onClick={() => {
-                    // volta pro tema aplicado antes
                     setDraftTheme(appliedTheme)
                     setThemePreview(false)
+                    setShowSettings(true)
+                    setSettingsTab('aparencia')
+                    setSettingsSub('tema')
                   }}
                 >
                   Voltar
@@ -718,7 +741,7 @@ function App() {
             </div>
             <div className="user-info" onClick={() => setShowProfile(true)} style={{ cursor: 'pointer' }}>
               <div className="username">{displayName}</div>
-              <div className="status">{statusText}</div>
+              <div className="status">@{handleName}</div>
             </div>
             <div className="user-controls">
               <button title="Silenciar"><FaMicrophone size={16} /></button>
@@ -957,14 +980,30 @@ function App() {
                     <>
                       <h3>Informações da conta</h3>
                       <div className="settings-row">
-                        <span className="settings-label">Nome de usuário</span>
+                        <span className="settings-label">Nome</span>
                         <span className="settings-value">{displayName}</span>
+                        <button
+                          className="settings-btn"
+                          onClick={() => {
+                            const n = prompt('Nome principal:', displayName)
+                            if (n && n.trim()) {
+                              setGlobalName(n.trim())
+                              saveProfile({ globalName: n.trim() })
+                            }
+                          }}
+                        >
+                          Editar
+                        </button>
+                      </div>
+                      <div className="settings-row">
+                        <span className="settings-label">Username</span>
+                        <span className="settings-value">@{handleName}</span>
                         <button
                           className="settings-btn"
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            setNewUsername(displayName)
+                            setNewUsername(handleName)
                             setUsernameError('')
                             setShowUsernameModal(true)
                           }}
@@ -2091,33 +2130,36 @@ function App() {
                     )}
                   </div>
 
-                  <div className="profile-info">
-                    <h2 style={getNameStyle()}>{displayName}</h2>
+                  <div className="profile-info player-card">
+                    <h2 className="player-display-name" style={getNameStyle()}>{displayName}</h2>
                     {currentNameplate.id !== 'none' && (
                       <div className="profile-nameplate-bar" style={{ background: currentNameplate.bg }}>
                         <FaDiscord size={12} /> {displayName}
                       </div>
                     )}
-                    <p className="profile-handle">
-                      {displayName.toLowerCase()}
-                      {pronouns ? ` · ${pronouns}` : ' · '}
-                      <button
-                        className="link-btn"
-                        onClick={() => {
-                          const p = prompt('Pronomes (ex: ele/dele):', pronouns)
-                          if (p !== null) {
-                            setPronouns(p)
-                            saveProfile({ pronouns: p })
-                          }
-                        }}
-                      >
-                        Adicionar pronomes
-                      </button>
+                    <p className="profile-handle player-handle">
+                      <span className="handle-text">{handleName}</span>
+                      {pronouns ? <span className="pronouns-text"> · {pronouns}</span> : null}
+                      {!pronouns && (
+                        <button
+                          className="link-btn"
+                          onClick={() => {
+                            const p = prompt('Pronomes (ex: ele/dele):', pronouns)
+                            if (p !== null) {
+                              setPronouns(p)
+                              saveProfile({ pronouns: p })
+                            }
+                          }}
+                        >
+                          {' '}Adicionar pronomes
+                        </button>
+                      )}
                     </p>
 
                     <div className="profile-actions">
-                      <button className="msg-btn">Mensagem</button>
+                      <button className="msg-btn"><FaCommentDots size={14} /> Mensagem</button>
                       <button className="icon-action"><FaUserFriends /></button>
+                      <button className="icon-action">···</button>
                     </div>
 
                     <div className="profile-bio-box">
@@ -2613,16 +2655,30 @@ function App() {
               {regErrors.birth && <span className="error-message">{regErrors.birth}</span>}
             </div>
             <div className="input-group">
-              <label>USUÁRIO *</label>
+              <label>NOME *</label>
+              <div className="input-icon">
+                <FaUser className="icon" />
+                <input
+                  type="text"
+                  placeholder="Seu nome principal"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                />
+              </div>
+              {regErrors.name && <span className="error-message">{regErrors.name}</span>}
+            </div>
+            <div className="input-group">
+              <label>USERNAME *</label>
               <div className="input-icon">
                 <FaEnvelope className="icon" />
                 <input
                   type="text"
-                  placeholder="nome_de_usuario"
+                  placeholder="seu_username"
                   value={regUser}
                   onChange={(e) => setRegUser(e.target.value)}
                 />
               </div>
+              <p className="field-hint">É o @ da sua conta (letras, números, _ e .)</p>
               {regErrors.user && <span className="error-message">{regErrors.user}</span>}
             </div>
             <div className="input-group">
