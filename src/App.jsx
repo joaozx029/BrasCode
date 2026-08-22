@@ -152,8 +152,22 @@ function App() {
   const [showEmail, setShowEmail] = useState(false)
   const [showUsernameModal, setShowUsernameModal] = useState(false)
   const [newUsername, setNewUsername] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [usernameError, setUsernameError] = useState('')
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [showGoogleModal, setShowGoogleModal] = useState(false)
+  const [themePreview, setThemePreview] = useState(false)
+  const [authScreen, setAuthScreen] = useState('welcome') // welcome | login | register
+  const [regUser, setRegUser] = useState('')
+  const [regPass, setRegPass] = useState('')
+  const [regPass2, setRegPass2] = useState('')
+  const [regBirth, setRegBirth] = useState('')
+  const [regErrors, setRegErrors] = useState({})
+  // tema aplicado de verdade vs rascunho na prévia
+  const [appliedTheme, setAppliedTheme] = useState({ theme: 'dark', colorTheme: null })
+  const [draftTheme, setDraftTheme] = useState({ theme: 'dark', colorTheme: null })
 
   // Privacidade (toggles)
   const [privacy, setPrivacy] = useState({
@@ -232,19 +246,19 @@ function App() {
   const [decoModal, setDecoModal] = useState(null) // 'frame' | 'avatarDeco' | 'nameStyle' | 'nameplate' | null
   const [tempDeco, setTempDeco] = useState(null) // seleção temporária no modal
 
-  // Carrega dados salvos ao abrir
+  // Carrega dados salvos — NÃO auto-loga (usuário precisa logar de novo)
   useEffect(() => {
     try {
       const saved = localStorage.getItem('discord_login')
       if (saved) {
         const data = JSON.parse(saved)
-        if (data.email) setEmail(data.email)
-        if (data.password) setPassword(data.password)
-        if (data.rememberMe !== undefined) setRememberMe(data.rememberMe)
-        if (data.autoLogin && data.email) {
-          setIsLoggedIn(true)
-        }
+        if (data.email && data.rememberMe) setEmail(data.email)
+        // senha não preenche automaticamente por segurança visual; remember só e-mail
+        if (data.rememberMe !== undefined) setRememberMe(!!data.rememberMe)
       }
+      // força tela de login
+      setIsLoggedIn(false)
+
       const profile = localStorage.getItem('discord_profile')
       if (profile) {
         const p = JSON.parse(profile)
@@ -266,8 +280,50 @@ function App() {
         if (p.nameColor) setNameColor(p.nameColor)
         if (p.nameplateId) setNameplateId(p.nameplateId)
       }
+      const appTheme = localStorage.getItem('discord_appearance')
+      if (appTheme) {
+        try {
+          const t = JSON.parse(appTheme)
+          setAppearance((prev) => ({ ...prev, ...t }))
+          if (t.theme || t.colorTheme !== undefined) {
+            setAppliedTheme({ theme: t.theme || 'dark', colorTheme: t.colorTheme ?? null })
+            setDraftTheme({ theme: t.theme || 'dark', colorTheme: t.colorTheme ?? null })
+          }
+        } catch (_) {}
+      }
     } catch (e) {}
   }, [])
+
+  // Aplica tema no site inteiro — só o tema APLICADO (ou rascunho se estiver na prévia)
+  useEffect(() => {
+    const source = themePreview ? draftTheme : appliedTheme
+    const root = document.documentElement
+    const themes = {
+      light: { bg: '#f2f3f5', sidebar: '#e3e5e8', panel: '#ffffff', text: '#060607', muted: '#4e5058', input: '#ffffff' },
+      ash: { bg: '#313338', sidebar: '#2b2d31', panel: '#1e1f22', text: '#f2f3f5', muted: '#b5bac1', input: '#1e1f22' },
+      dark: { bg: '#313338', sidebar: '#2b2d31', panel: '#1e1f22', text: '#f2f3f5', muted: '#b5bac1', input: '#1e1f22' },
+      midnight: { bg: '#000000', sidebar: '#0a0a0a', panel: '#111111', text: '#f2f3f5', muted: '#949ba4', input: '#1a1a1a' },
+      auto: { bg: '#313338', sidebar: '#2b2d31', panel: '#1e1f22', text: '#f2f3f5', muted: '#b5bac1', input: '#1e1f22' },
+    }
+    let t = themes[source.theme] || themes.dark
+    if (source.colorTheme !== null && source.colorTheme !== undefined) {
+      const colorBgs = [
+        '#1a2e1a', '#2e2418', '#182433', '#2e1824', '#241833',
+        '#182a2e', '#2e2a18', '#2e2018', '#0d2818', '#0a1a0a',
+        '#1a0808', '#1a0a28', '#0a1a28', '#2a1208', '#0a0a28',
+        '#0a1a14', '#1a1a3a',
+      ]
+      const c = colorBgs[source.colorTheme] || t.bg
+      t = { ...t, bg: c, sidebar: c, panel: '#111214' }
+    }
+    root.style.setProperty('--app-bg', t.bg)
+    root.style.setProperty('--app-sidebar', t.sidebar)
+    root.style.setProperty('--app-panel', t.panel)
+    root.style.setProperty('--app-text', t.text)
+    root.style.setProperty('--app-muted', t.muted)
+    root.style.setProperty('--app-input', t.input)
+    document.body.style.background = t.panel
+  }, [appliedTheme, draftTheme, themePreview])
 
   const saveLogin = (mail, pass, remember) => {
     if (remember) {
@@ -275,7 +331,7 @@ function App() {
         email: mail,
         password: pass,
         rememberMe: true,
-        autoLogin: true
+        autoLogin: false
       }))
     } else {
       localStorage.removeItem('discord_login')
@@ -414,27 +470,99 @@ function App() {
     return isValid
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (validate()) {
-      saveLogin(email, password, rememberMe)
-      if (!username) {
-        const name = email.includes('@') ? email.split('@')[0] : email.trim()
-        setUsername(name)
-        saveProfile({ username: name })
-      }
-      setShowSuccessModal(true)
+  const getUsers = () => {
+    try {
+      return JSON.parse(localStorage.getItem('discord_users') || '[]')
+    } catch {
+      return []
     }
   }
 
-  const handleGoogleLogin = () => {
-    const mail = email.trim() || 'usuario.google'
-    setEmail(mail)
-    saveLogin(mail, password || 'google', rememberMe)
-    if (!username) {
-      setUsername(mail.includes('@') ? mail.split('@')[0] : mail)
-      saveProfile({ username: mail.includes('@') ? mail.split('@')[0] : mail })
+  const saveUser = (user) => {
+    const users = getUsers().filter(
+      (x) => x.username.toLowerCase() !== user.username.toLowerCase() && x.email.toLowerCase() !== user.email.toLowerCase()
+    )
+    users.push(user)
+    localStorage.setItem('discord_users', JSON.stringify(users))
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!validate()) return
+
+    const users = getUsers()
+    const loginId = email.trim().toLowerCase()
+    const found = users.find(
+      (u) =>
+        u.username.toLowerCase() === loginId ||
+        u.email.toLowerCase() === loginId ||
+        (u.email.includes('@') && u.email.split('@')[0].toLowerCase() === loginId)
+    )
+
+    if (users.length > 0) {
+      if (!found) {
+        setErrors((prev) => ({ ...prev, email: 'Usuário não encontrado. Cria uma conta ou confere o nome.' }))
+        return
+      }
+      if (found.password !== password) {
+        setErrors((prev) => ({ ...prev, password: 'Senha incorreta.' }))
+        return
+      }
+      setEmail(found.email)
+      setUsername(found.username)
+      saveProfile({ username: found.username })
+      saveLogin(found.email, found.password, rememberMe)
+    } else {
+      // primeira conta / legado
+      const name = email.includes('@') ? email.split('@')[0] : email.trim()
+      saveUser({ username: name, email: email.trim(), password, birth: '' })
+      setUsername(name)
+      saveProfile({ username: name })
+      saveLogin(email, password, rememberMe)
     }
+    setShowSuccessModal(true)
+  }
+
+  const handleRegister = (e) => {
+    e.preventDefault()
+    const errs = {}
+    if (!regBirth) errs.birth = 'Informe a data de nascimento.'
+    if (!regUser.trim() || !/^[a-zA-Z0-9._]{2,32}$/.test(regUser.trim())) {
+      errs.user = 'Usuário inválido (letras, números, _ e .).'
+    }
+    if (!regPass || regPass.length < 4) errs.pass = 'Senha com pelo menos 4 caracteres.'
+    if (regPass !== regPass2) errs.pass2 = 'As senhas não coincidem.'
+    const users = getUsers()
+    if (users.some((u) => u.username.toLowerCase() === regUser.trim().toLowerCase())) {
+      errs.user = 'Esse usuário já existe.'
+    }
+    setRegErrors(errs)
+    if (Object.keys(errs).length) return
+
+    const mail = `${regUser.trim()}@local.app`
+    saveUser({ username: regUser.trim(), email: mail, password: regPass, birth: regBirth })
+    setEmail(mail)
+    setPassword(regPass)
+    setUsername(regUser.trim())
+    saveProfile({ username: regUser.trim() })
+    saveLogin(mail, regPass, true)
+    setShowSuccessModal(true)
+  }
+
+  const handleGoogleLogin = () => {
+    setShowGoogleModal(true)
+  }
+
+  const confirmGoogleLogin = (accountEmail) => {
+    const mail = accountEmail || 'usuario.google@gmail.com'
+    setEmail(mail)
+    const pass = 'google-oauth'
+    setPassword(pass)
+    saveLogin(mail, pass, rememberMe)
+    const name = mail.includes('@') ? mail.split('@')[0] : mail
+    setUsername(name)
+    saveProfile({ username: name })
+    setShowGoogleModal(false)
     setShowSuccessModal(true)
   }
 
@@ -478,7 +606,52 @@ function App() {
   // ========== TELA PÓS-LOGIN ==========
   if (isLoggedIn) {
     return (
-      <div className="discord-app">
+      <div className={`discord-app theme-${appearance.theme}`}>
+        {themePreview && (
+          <div className="theme-preview-overlay">
+            <div className="theme-preview-card">
+              <h3>Pré-visualização do tema</h3>
+              <p className="settings-hint">O app inteiro está usando este tema temporariamente. Se não gostar, volte.</p>
+              <div className="theme-preview-sample" style={{ background: 'var(--app-bg)' }}>
+                <div className="theme-preview-side" style={{ background: 'var(--app-sidebar)' }} />
+                <div className="theme-preview-main">
+                  <div className="theme-preview-bar" style={{ background: 'var(--app-panel)' }} />
+                  <p style={{ color: 'var(--app-text)' }}>Assim fica o fundo do site.</p>
+                  <p style={{ color: 'var(--app-muted)', fontSize: 13 }}>Só aplica de verdade se clicar em Aplicar.</p>
+                </div>
+              </div>
+              <div className="mini-modal-footer">
+                <button
+                  className="settings-btn"
+                  onClick={() => {
+                    // volta pro tema aplicado antes
+                    setDraftTheme(appliedTheme)
+                    setThemePreview(false)
+                  }}
+                >
+                  Voltar
+                </button>
+                <button
+                  className="settings-btn primary"
+                  onClick={() => {
+                    setAppliedTheme(draftTheme)
+                    setAppearance((prev) => ({ ...prev, theme: draftTheme.theme, colorTheme: draftTheme.colorTheme }))
+                    try {
+                      localStorage.setItem('discord_appearance', JSON.stringify({
+                        ...appearance,
+                        theme: draftTheme.theme,
+                        colorTheme: draftTheme.colorTheme,
+                      }))
+                    } catch (_) {}
+                    setThemePreview(false)
+                  }}
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Sidebar servidores */}
         <div className="server-sidebar">
           <div className="server-icon home" title="Início">
@@ -781,9 +954,10 @@ function App() {
                         <span className="settings-value">{displayName}</span>
                         <button
                           className="settings-btn"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
                             setNewUsername(displayName)
-                            setConfirmPassword('')
                             setUsernameError('')
                             setShowUsernameModal(true)
                           }}
@@ -817,11 +991,65 @@ function App() {
                   {settingsTab === 'conta' && settingsSub === 'senha' && (
                     <>
                       <h3>Senha e segurança</h3>
-                      <div className="settings-row">
-                        <span className="settings-label">Senha</span>
-                        <span className="settings-value" />
-                        <button className="settings-btn">Editar</button>
-                      </div>
+                      {!showPasswordForm ? (
+                        <div className="settings-row">
+                          <span className="settings-label">Senha</span>
+                          <span className="settings-value" />
+                          <button
+                            className="settings-btn"
+                            onClick={() => {
+                              setShowPasswordForm(true)
+                              setNewPassword('')
+                              setConfirmNewPassword('')
+                              setPasswordError('')
+                            }}
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="password-change-box">
+                          <label className="mini-label">Nova senha</label>
+                          <input
+                            type="password"
+                            className="mini-input"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Nova senha"
+                          />
+                          <label className="mini-label">Confirmar senha</label>
+                          <input
+                            type="password"
+                            className="mini-input"
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            placeholder="Confirmar senha"
+                          />
+                          {passwordError && <p className="mini-error">{passwordError}</p>}
+                          <div className="mini-modal-footer" style={{ justifyContent: 'flex-start' }}>
+                            <button
+                              className="settings-btn primary"
+                              onClick={() => {
+                                if (!newPassword || newPassword.length < 4) {
+                                  setPasswordError('A senha precisa ter pelo menos 4 caracteres.')
+                                  return
+                                }
+                                if (newPassword !== confirmNewPassword) {
+                                  setPasswordError('As senhas não coincidem.')
+                                  return
+                                }
+                                setPassword(newPassword)
+                                saveLogin(email, newPassword, rememberMe)
+                                setShowPasswordForm(false)
+                                setPasswordError('')
+                              }}
+                            >
+                              Salvar
+                            </button>
+                            <button className="settings-btn" onClick={() => setShowPasswordForm(false)}>Cancelar</button>
+                          </div>
+                        </div>
+                      )}
                       <div className="settings-row clickable-row">
                         <span className="settings-label">Autenticação Multifatorial</span>
                         <span className="settings-value muted" style={{ textAlign: 'right' }}>Definir ›</span>
@@ -1216,11 +1444,11 @@ function App() {
                           <button
                             key={t.id}
                             type="button"
-                            className={`theme-swatch ${appearance.theme === t.id ? 'selected' : ''}`}
+                            className={`theme-swatch ${(themePreview ? draftTheme.theme : appliedTheme.theme) === t.id ? 'selected' : ''}`}
                             style={{ background: t.bg, borderColor: t.border || 'transparent' }}
-                            onClick={() => setAppearance({ ...appearance, theme: t.id })}
+                            onClick={() => setDraftTheme((d) => ({ ...d, theme: t.id, colorTheme: null }))}
                           >
-                            {appearance.theme === t.id && <span className="theme-check">✓</span>}
+                            {(themePreview ? draftTheme.theme : appliedTheme.theme) === t.id && <span className="theme-check">✓</span>}
                             {t.id === 'auto' && <span className="theme-auto">⇄</span>}
                           </button>
                         ))}
@@ -1242,8 +1470,41 @@ function App() {
                             <p className="privacy-desc">Todos liberados — sem Nitro.</p>
                           </div>
                           <div className="color-themes-actions">
-                            <button className="settings-btn">Pré-visualizar tema</button>
-                            <button className="settings-btn primary">Usar tema</button>
+                            <button
+                              className="settings-btn"
+                              type="button"
+                              onClick={() => {
+                                setDraftTheme({
+                                  theme: draftTheme.theme || appliedTheme.theme,
+                                  colorTheme: draftTheme.colorTheme ?? appliedTheme.colorTheme,
+                                })
+                                setShowSettings(false)
+                                setThemePreview(true)
+                              }}
+                            >
+                              Pré-visualizar tema
+                            </button>
+                            <button
+                              className="settings-btn primary"
+                              type="button"
+                              onClick={() => {
+                                setAppliedTheme(draftTheme)
+                                setAppearance((prev) => ({
+                                  ...prev,
+                                  theme: draftTheme.theme,
+                                  colorTheme: draftTheme.colorTheme,
+                                }))
+                                try {
+                                  localStorage.setItem('discord_appearance', JSON.stringify({
+                                    ...appearance,
+                                    theme: draftTheme.theme,
+                                    colorTheme: draftTheme.colorTheme,
+                                  }))
+                                } catch (_) {}
+                              }}
+                            >
+                              Usar tema
+                            </button>
                           </div>
                         </div>
                         <div className="color-theme-grid">
@@ -1269,9 +1530,9 @@ function App() {
                             <button
                               key={i}
                               type="button"
-                              className={`color-theme-swatch ${appearance.colorTheme === i ? 'selected' : ''}`}
+                              className={`color-theme-swatch ${(themePreview ? draftTheme.colorTheme : appliedTheme.colorTheme) === i ? 'selected' : ''}`}
                               style={{ background: bg }}
-                              onClick={() => setAppearance({ ...appearance, colorTheme: i })}
+                              onClick={() => setDraftTheme((d) => ({ ...d, colorTheme: i }))}
                             />
                           ))}
                         </div>
@@ -1515,7 +1776,7 @@ function App() {
               </div>
             </div>
 
-            {/* Modal mudança de nome de usuário */}
+            {/* Modal mudança de nome de usuário (sem senha) */}
             {showUsernameModal && (
               <div className="mini-modal-overlay" onClick={() => setShowUsernameModal(false)}>
                 <div className="mini-modal" onClick={(e) => e.stopPropagation()}>
@@ -1523,7 +1784,7 @@ function App() {
                     <h3>Mudança de nome de usuário</h3>
                     <button onClick={() => setShowUsernameModal(false)}><FaTimes /></button>
                   </div>
-                  <p className="mini-modal-desc">Insira um novo nome de usuário e sua senha atual.</p>
+                  <p className="mini-modal-desc">Insira um novo nome de usuário.</p>
 
                   <label className="mini-label">Nome de usuário</label>
                   <div className="mini-input-wrap">
@@ -1536,21 +1797,8 @@ function App() {
                       }}
                       className="mini-input"
                     />
-                    <span className="mini-lock">🔒</span>
                   </div>
                   <p className="mini-hint">Use apenas números, letras, underlines _ ou pontos.</p>
-
-                  <label className="mini-label">Senha atual</label>
-                  <div className="mini-input-wrap">
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="mini-input"
-                      placeholder="········"
-                    />
-                    <span className="mini-lock">🔒</span>
-                  </div>
 
                   {usernameError && <p className="mini-error">{usernameError}</p>}
 
@@ -1561,14 +1809,6 @@ function App() {
                       onClick={() => {
                         if (!/^[a-zA-Z0-9._]+$/.test(newUsername.trim())) {
                           setUsernameError('Use apenas números, letras, underlines _ ou pontos.')
-                          return
-                        }
-                        if (!confirmPassword) {
-                          setUsernameError('Digite sua senha atual.')
-                          return
-                        }
-                        if (confirmPassword !== password) {
-                          setUsernameError('Senha incorreta. Digite a senha da sua conta.')
                           return
                         }
                         setUsername(newUsername.trim())
@@ -2262,85 +2502,185 @@ function App() {
     )
   }
 
-  // ========== TELA DE LOGIN (mais brasileira) ==========
+  // ========== TELA DE LOGIN / CADASTRO ==========
   return (
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
           <div className="logo">D2</div>
-          <h1>E aí, de volta?</h1>
-          <p>Que bom te ver de novo por aqui! Entra aí e bora pro papo 🇧🇷</p>
+          {authScreen === 'welcome' && (
+            <>
+              <h1>Bem-vindo 🇧🇷</h1>
+              <p>Entra na sua conta ou cria uma nova pra começar.</p>
+            </>
+          )}
+          {authScreen === 'login' && (
+            <>
+              <h1>Entrar</h1>
+              <p>Coloca usuário e senha pra continuar.</p>
+            </>
+          )}
+          {authScreen === 'register' && (
+            <>
+              <h1>Criar conta</h1>
+              <p>Preenche os dados pra se cadastrar.</p>
+            </>
+          )}
         </div>
 
-        <button className="google-button" onClick={handleGoogleLogin}>
-          <FaGoogle className="google-icon" />
-          Continuar com Google
-        </button>
-
-        <div className="divider"><span>OU</span></div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label htmlFor="email">E-MAIL OU TELEFONE *</label>
-            <div className="input-icon">
-              <FaEnvelope className="icon" />
-              <input
-                id="email"
-                type="text"
-                placeholder="Digite seu e-mail ou telefone"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  setErrors({ ...errors, email: '', general: '' })
-                }}
-                className={errors.email ? 'error' : ''}
-              />
-            </div>
-            {errors.email && <span className="error-message">{errors.email}</span>}
+        {authScreen === 'welcome' && (
+          <div className="welcome-actions">
+            <button type="button" className="login-button" onClick={() => setAuthScreen('login')}>
+              Entrar
+            </button>
+            <button type="button" className="login-button secondary-btn" onClick={() => setAuthScreen('register')}>
+              Criar conta
+            </button>
+            <div className="divider"><span>OU</span></div>
+            <button type="button" className="google-button" onClick={handleGoogleLogin}>
+              <FaGoogle className="google-icon" />
+              Continuar com Google
+            </button>
           </div>
+        )}
 
-          <div className="input-group">
-            <div className="password-label">
-              <label htmlFor="password">SENHA *</label>
-              <a href="#">Esqueceu a senha?</a>
+        {authScreen === 'login' && (
+          <form onSubmit={handleSubmit}>
+            <div className="input-group">
+              <label htmlFor="email">E-MAIL, TELEFONE OU USUÁRIO *</label>
+              <div className="input-icon">
+                <FaEnvelope className="icon" />
+                <input
+                  id="email"
+                  type="text"
+                  placeholder="Seu usuário ou e-mail"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setErrors({ ...errors, email: '', general: '' })
+                  }}
+                  className={errors.email ? 'error' : ''}
+                />
+              </div>
+              {errors.email && <span className="error-message">{errors.email}</span>}
             </div>
-            <div className="input-icon">
-              <FaLock className="icon" />
+            <div className="input-group">
+              <div className="password-label">
+                <label htmlFor="password">SENHA *</label>
+              </div>
+              <div className="input-icon">
+                <FaLock className="icon" />
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="Sua senha"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setErrors({ ...errors, password: '', general: '' })
+                  }}
+                  className={errors.password ? 'error' : ''}
+                />
+              </div>
+              {errors.password && <span className="error-message">{errors.password}</span>}
+            </div>
+            <label className="remember-me">
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+              <span>Salvar neste aparelho</span>
+            </label>
+            <button className="login-button" type="submit">Entrar</button>
+            <button type="button" className="link-back" onClick={() => setAuthScreen('welcome')}>← Voltar</button>
+          </form>
+        )}
+
+        {authScreen === 'register' && (
+          <form onSubmit={handleRegister}>
+            <div className="input-group">
+              <label>DATA DE NASCIMENTO *</label>
               <input
-                id="password"
-                type="password"
-                placeholder="Digite sua senha"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  setErrors({ ...errors, password: '', general: '' })
-                }}
-                className={errors.password ? 'error' : ''}
+                type="date"
+                className="date-input"
+                value={regBirth}
+                onChange={(e) => setRegBirth(e.target.value)}
               />
+              {regErrors.birth && <span className="error-message">{regErrors.birth}</span>}
             </div>
-            {errors.password && <span className="error-message">{errors.password}</span>}
-          </div>
-
-          {errors.general && <div className="error-general">{errors.general}</div>}
-
-          <label className="remember-me">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
-            <span>Salvar login e senha neste aparelho</span>
-          </label>
-
-          <button className="login-button" type="submit">
-            Entrar
-          </button>
-        </form>
-
-        <div className="register">
-          Ainda não tem conta? <a href="#">Cria uma aí</a>
-        </div>
+            <div className="input-group">
+              <label>USUÁRIO *</label>
+              <div className="input-icon">
+                <FaEnvelope className="icon" />
+                <input
+                  type="text"
+                  placeholder="nome_de_usuario"
+                  value={regUser}
+                  onChange={(e) => setRegUser(e.target.value)}
+                />
+              </div>
+              {regErrors.user && <span className="error-message">{regErrors.user}</span>}
+            </div>
+            <div className="input-group">
+              <label>SENHA *</label>
+              <div className="input-icon">
+                <FaLock className="icon" />
+                <input type="password" placeholder="Crie uma senha" value={regPass} onChange={(e) => setRegPass(e.target.value)} />
+              </div>
+              {regErrors.pass && <span className="error-message">{regErrors.pass}</span>}
+            </div>
+            <div className="input-group">
+              <label>CONFIRMAR SENHA *</label>
+              <div className="input-icon">
+                <FaLock className="icon" />
+                <input type="password" placeholder="Repita a senha" value={regPass2} onChange={(e) => setRegPass2(e.target.value)} />
+              </div>
+              {regErrors.pass2 && <span className="error-message">{regErrors.pass2}</span>}
+            </div>
+            <button className="login-button" type="submit">Criar conta</button>
+            <button type="button" className="link-back" onClick={() => setAuthScreen('welcome')}>← Voltar</button>
+          </form>
+        )}
       </div>
+
+      {showGoogleModal && (
+        <div className="modal-overlay" onClick={() => setShowGoogleModal(false)}>
+          <div className="modal-card google-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="google-picker-header">
+              <FaGoogle size={22} color="#ea4335" />
+              <h2>Escolher conta Google</h2>
+            </div>
+            <p className="mini-modal-desc">
+              Selecione uma conta para continuar.
+              <br />
+              <small style={{ color: '#949ba4' }}>
+                (Simulação local — o navegador não permite listar seus e-mails reais do Google sem OAuth oficial.)
+              </small>
+            </p>
+            <button type="button" className="google-account" onClick={() => confirmGoogleLogin('usuario.brasil@gmail.com')}>
+              <span className="google-avatar">U</span>
+              <div>
+                <strong>Usuario Brasil</strong>
+                <p>usuario.brasil@gmail.com</p>
+              </div>
+            </button>
+            <button type="button" className="google-account" onClick={() => confirmGoogleLogin('arara.verde@gmail.com')}>
+              <span className="google-avatar" style={{ background: '#009b3a' }}>A</span>
+              <div>
+                <strong>Arara Verde</strong>
+                <p>arara.verde@gmail.com</p>
+              </div>
+            </button>
+            <button type="button" className="google-account" onClick={() => confirmGoogleLogin('outra.conta@gmail.com')}>
+              <span className="google-avatar" style={{ background: '#fedf00', color: '#111' }}>O</span>
+              <div>
+                <strong>Usar outra conta</strong>
+                <p>outra.conta@gmail.com</p>
+              </div>
+            </button>
+            <button type="button" className="settings-btn" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowGoogleModal(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSuccessModal && (
         <div className="modal-overlay">

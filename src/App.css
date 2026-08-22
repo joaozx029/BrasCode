@@ -9,10 +9,10 @@
   justify-content: center;
   padding: 20px;
   background:
-    radial-gradient(circle at 15% 25%, rgba(0, 155, 58, 0.55) 0%, transparent 42%),
-    radial-gradient(circle at 85% 75%, rgba(254, 223, 0, 0.28) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(0, 39, 118, 0.25) 0%, transparent 55%),
-    #0a120e;
+    radial-gradient(ellipse at 20% 20%, rgba(0, 155, 58, 0.75) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(254, 223, 0, 0.55) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 30%, rgba(0, 155, 58, 0.35) 0%, transparent 40%),
+    linear-gradient(145deg, #0a1f0f 0%, #1a2e0a 40%, #2a2408 100%);
   animation: gradientShift 12s ease-in-out infinite alternate;
 }
 
@@ -365,12 +365,21 @@ label {
    DISCORD APP - Tela pós-login (Amigos)
    ===================================================== */
 
+:root {
+  --app-bg: #313338;
+  --app-sidebar: #2b2d31;
+  --app-panel: #1e1f22;
+  --app-text: #f2f3f5;
+  --app-muted: #b5bac1;
+  --app-input: #1e1f22;
+}
+
 .discord-app {
   display: flex;
   height: 100vh;
   width: 100vw;
-  background: #1e1f22;
-  color: #f2f3f5;
+  background: var(--app-panel);
+  color: var(--app-text);
   overflow: hidden;
   font-family: 'Inter', 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -378,7 +387,7 @@ label {
 /* ---- Sidebar de servidores (esquerda) ---- */
 .server-sidebar {
   width: 72px;
-  background: #1e1f22;
+  background: var(--app-panel);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -444,7 +453,7 @@ label {
 /* ---- Sidebar de canais / DMs ---- */
 .channel-sidebar {
   width: 240px;
-  background: #2b2d31;
+  background: var(--app-sidebar);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -622,7 +631,7 @@ label {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #313338;
+  background: var(--app-bg);
   min-width: 0;
 }
 
@@ -876,8 +885,8 @@ label {
 /* ---- Painel Ativo agora (direita) ---- */
 .active-now-panel {
   width: 360px;
-  background: #313338;
-  border-left: 1px solid #1e1f22;
+  background: var(--app-bg);
+  border-left: 1px solid var(--app-panel);
   padding: 16px;
   flex-shrink: 0;
   display: flex;
@@ -2752,14 +2761,13 @@ label {
 
 /* Mini modal (mudança de username) */
 .mini-modal-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
-  z-index: 100;
+  background: rgba(0,0,0,0.75);
+  z-index: 5000;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
 }
 
 .mini-modal {
@@ -3258,4 +3266,322 @@ label {
 .app-icon-btn.selected {
   border-color: #5865f2;
   box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.4);
+}
+
+/* Google picker + theme preview + profile fixes */
+.google-picker {
+  text-align: left;
+  max-width: 400px;
+}
+
+.google-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.google-picker-header h2 {
+  font-size: 18px;
+  margin: 0;
+  color: #f2f3f5;
+}
+
+.google-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: #2b2d31;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+  text-align: left;
+  color: #f2f3f5;
+}
+
+.google-account:hover {
+  background: #35373c;
+}
+
+.google-account strong {
+  display: block;
+  font-size: 14px;
+}
+
+.google-account p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #b5bac1;
+}
+
+.google-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #5865f2;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.theme-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-preview-card {
+  background: #313338;
+  border-radius: 12px;
+  padding: 20px;
+  width: 420px;
+  max-width: 92vw;
+}
+
+.theme-preview-card h3 {
+  margin: 0 0 12px;
+  color: #f2f3f5;
+}
+
+.theme-preview-sample {
+  display: flex;
+  height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid #3f4147;
+}
+
+.theme-preview-side {
+  width: 56px;
+}
+
+.theme-preview-main {
+  flex: 1;
+  padding: 16px;
+}
+
+.theme-preview-bar {
+  height: 28px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.password-change-box {
+  background: #2b2d31;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.password-change-box .mini-input {
+  margin-bottom: 8px;
+}
+
+/* Perfil – inputs escuros (sem branco) */
+.profile-info input,
+.profile-info textarea,
+.profile-preview input,
+.profile-preview textarea {
+  background: #1e1f22 !important;
+  border: 1px solid #3f4147 !important;
+  color: #f2f3f5 !important;
+  border-radius: 4px;
+  padding: 8px 10px;
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.profile-info input:focus,
+.profile-info textarea:focus {
+  border-color: #5865f2 !important;
+  outline: none;
+}
+
+.profile-banner {
+  background: #1e1f22;
+  min-height: 100px;
+}
+
+.profile-card {
+  background: #1e1f22;
+}
+
+.profile-preview {
+  background: #2b2d31 !important;
+}
+
+.color-picker-popup,
+.banner-picker,
+.context-menu {
+  background: #111214 !important;
+  border: 1px solid #3f4147;
+  color: #f2f3f5;
+}
+
+/* Auth welcome / register */
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-button.secondary-btn {
+  background: #4e5058;
+}
+
+.login-button.secondary-btn:hover {
+  background: #6d6f78;
+}
+
+.link-back {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: #00a8fc;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+}
+
+.date-input {
+  width: 100%;
+  height: 42px;
+  background: #1e1f22;
+  border: none;
+  border-radius: 4px;
+  color: #f2f3f5;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+  .discord-app {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  .server-sidebar {
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 8px;
+  }
+
+  .channel-sidebar {
+    display: none;
+  }
+
+  .main-content {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .active-now-panel {
+    display: none;
+  }
+
+  .content-area {
+    flex-direction: column;
+  }
+
+  .add-friend-section {
+    flex-direction: column;
+  }
+
+  .friend-illustration {
+    align-self: center;
+    margin: 8px 0;
+  }
+
+  .settings-modal,
+  .profile-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    flex-direction: column;
+  }
+
+  .settings-sidebar,
+  .profile-sidebar {
+    width: 100% !important;
+    max-height: 40%;
+    overflow-y: auto;
+  }
+
+  .settings-content,
+  .profile-preview {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .login-card {
+    max-width: 100%;
+    margin: 12px;
+    padding: 24px 18px;
+  }
+
+  .deco-modal-wide {
+    width: 100vw !important;
+    max-height: 100dvh;
+  }
+
+  .deco-modal-split {
+    flex-direction: column;
+  }
+
+  .deco-modal-right {
+    width: 100%;
+  }
+}
+
+/* Mais anti-branco no perfil */
+.profile-modal,
+.profile-sidebar,
+.profile-preview,
+.profile-card,
+.profile-info,
+.settings-modal,
+.settings-content,
+.settings-body {
+  background-color: #2b2d31;
+  color: #f2f3f5;
+}
+
+.profile-preview input,
+.profile-preview textarea,
+.profile-info input,
+.profile-info textarea,
+.settings-body input,
+.settings-body textarea,
+.mini-input,
+.date-input {
+  background: #1e1f22 !important;
+  color: #f2f3f5 !important;
+  border: 1px solid #3f4147 !important;
+  -webkit-text-fill-color: #f2f3f5;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 30px #1e1f22 inset !important;
+  -webkit-text-fill-color: #f2f3f5 !important;
 }
